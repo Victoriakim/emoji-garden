@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Emoji World</title>
+    <style>
+        @font-face {
+            font-family: 'Comic Neue';
+            src: url('https://fonts.gstatic.com/s/comicneue/v6/4UaHrEJDsxBrF37olUeD96rp57F2IwN-Dwn-5ag.woff2') format('woff2');
+            font-weight: 400;
+            font-style: normal;
+            font-display: swap;
+        }
+
+        body,
+        html {
+            font-family: 'Comic Neue', 'Comic Sans MS', 'Chalkboard SE', 'Marker Felt', sans-serif;
+            margin: 0;
+            padding: 0;
+            height: 100%;
+            width: 100%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background-color: #E6F3FF;
+            overflow: hidden;
+        }
+
+        .container {
+            text-align: center;
+        }
+
+        .button {
+            font-size: 1.2em;
+            padding: 10px 20px;
+            margin: 10px;
+            cursor: pointer;
+            background-color: #F0F8FF;
+            border: 2px solid #4682B4;
+            border-radius: 20px;
+            color: #4682B4;
+            transition: all 0.2s ease;
+            font-family: inherit;
+            font-weight: normal;
+            min-width: 200px;
+        }
+
+        .button:hover {
+            background-color: #FFFFFF;
+        }
+
+        h1 {
+            color: #4682B4;
+            margin-bottom: 20px;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container" id="content">
+        <h1>Welcome to Emoji World!</h1>
+        <button class="button" id="createWorldBtn">Create an Emoji World 🌎</button>
+    </div>
+
+    <script>
+        const content = document.getElementById('content');
+        const createWorldBtn = document.getElementById('createWorldBtn');
+
+        createWorldBtn.addEventListener('click', () => {
+            content.innerHTML = `
+                <h1>Choose Your Emoji World</h1>
+                <button class="button" id="gardenBtn">Garden 🌻</button>
+                <button class="button" id="farmBtn">Farm 🐷</button>
+            `;
+
+            document.getElementById('gardenBtn').addEventListener('click', () => {
+                window.location.href = 'garden.html';
+            });
+
+            document.getElementById('farmBtn').addEventListener('click', () => {
+                window.location.href = 'farm.html';
+            });
+        });
+    </script>
+</body>
+
+</html>

@@ -1,0 +1,512 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Infinite Emoji Garden</title>
+    <style>
+        @font-face {
+            font-family: 'Comic Neue';
+            src: url('https://fonts.gstatic.com/s/comicneue/v6/4UaHrEJDsxBrF37olUeD96rp57F2IwN-Dwn-5ag.woff2') format('woff2');
+            font-weight: 400;
+            font-style: normal;
+            font-display: swap;
+        }
+
+        body,
+        html {
+            font-family: 'Comic Neue', 'Comic Sans MS', 'Chalkboard SE', 'Marker Felt', sans-serif;
+            margin: 0;
+            padding: 0;
+            height: 100%;
+            width: 100%;
+            background-color: #E8EFE6;
+            overflow: hidden;
+            touch-action: none;
+        }
+
+        #toolbar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            padding: 10px;
+            background-color: rgba(166, 181, 150, 0.5);
+            z-index: 1000;
+        }
+
+        .tool {
+            font-size: 1em;
+            padding: 8px 12px;
+            cursor: pointer;
+            background-color: #F3F7EF;
+            border: 2px solid #4A5D46;
+            border-radius: 20px;
+            color: #4A5D46;
+            transition: all 0.2s ease;
+            font-family: inherit;
+            font-weight: normal;
+            flex: 1;
+            min-width: 70px;
+            max-width: 100px;
+            text-align: center;
+            white-space: nowrap;
+        }
+
+        .tool:hover {
+            background-color: #FFFFFF;
+        }
+
+        #garden-container {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            overflow: hidden;
+        }
+
+        #garden {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            transform-origin: 0 0;
+            transition: transform 0.3s ease-out;
+        }
+
+        .plant {
+            font-size: 2.5em;
+            position: absolute;
+            user-select: none;
+            touch-action: none;
+        }
+
+        .selected {
+            background-color: #8FAB7B;
+            color: #FFFFFF;
+        }
+
+        .cursor-plant {
+            cursor: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='32' height='32' style='font-size: 24px; opacity: 0.6;'><text y='20'>🌱</text></svg>"), auto;
+        }
+
+        .cursor-water {
+            cursor: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='32' height='32' style='font-size: 24px; opacity: 0.6;'><text y='20'>💧</text></svg>"), auto;
+        }
+
+        .cursor-kill {
+            cursor: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='32' height='32' style='font-size: 24px; opacity: 0.6;'><text y='20'>✂️</text></svg>"), auto;
+        }
+
+        .cursor-move {
+            cursor: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='32' height='32' style='font-size: 24px; opacity: 0.6;'><text y='20'>➡️</text></svg>"), auto;
+        }
+
+        .cursor-cook {
+            cursor: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='32' height='32' style='font-size: 24px; opacity: 0.6;'><text y='20'>🔥</text></svg>"), auto;
+        }
+
+        @media (max-width: 600px) {
+            .tool {
+                font-size: 0.8em;
+                padding: 6px 8px;
+                min-width: 50px;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div id="toolbar">
+        <button id="plantButton" class="tool">Plant 🌱</button>
+        <button id="waterButton" class="tool">Water 💧</button>
+        <button id="moveButton" class="tool">Move ➡️</button>
+        <button id="killButton" class="tool">Kill ✂️</button>
+        <button id="cookButton" class="tool">Cook 🔥</button>
+    </div>
+    <div id="garden-container">
+        <div id="garden"></div>
+    </div>
+
+    <script>
+        const plantButton = document.getElementById('plantButton');
+        const waterButton = document.getElementById('waterButton');
+        const killButton = document.getElementById('killButton');
+        const moveButton = document.getElementById('moveButton');
+        const cookButton = document.getElementById('cookButton');
+        const garden = document.getElementById('garden');
+        const gardenContainer = document.getElementById('garden-container');
+        let selectedTool = 'plant';
+        let isDragging = false;
+        let currentPlant = null;
+        let offsetX, offsetY;
+        let scale = 1;
+        let translateX = 0;
+        let translateY = 0;
+        let lastX, lastY;
+        let isPanning = false;
+
+        const plantEmojis = [
+            // Plants and flowers
+            '🌱', '🌲', '🌳', '🌴', '🌵', '🌾', '🌿', '☘️', '🍀', '🍁', '🍂', '🍃',
+            '🍄', '🌸', '🌹', '🌺', '🌻', '🌼', '🌷', '🥀',
+
+            // Fruits
+            '🍇', '🍈', '🍉', '🍊', '🍋', '🍌', '🍍', '🥭', '🍎', '🍏', '🍐', '🍑', 
+            '🍒', '🍓', '🥝', '🫐', '🫒', '🥥',
+
+            // Vegetables
+            '🥑', '🍅', '🥕', '🌽', '🥒', '🥬', '🥦', '🧄', '🧅', '🥔', '🍠', '🫑',
+            '🌶️', '🫚', '🫛', '🥜', '🌰', '🫘',
+
+            // Herbs and spices
+            '🌿', '🥬', '🌱', '🧄', '🧅',
+
+            // Grains and seeds
+            '🌾', '🌰', '🥜', '🫘',
+
+            // Animal products (raw)
+            '🥚', '🥛', '🍯',
+
+            // Seafood (raw)
+            '🐟', '🦪', '🦀', '🦞', '🦐', '🐙',
+
+            // Meat (raw)
+            '🥩',
+
+            // Cooking essentials
+            '🧂', '🧈', // Salt, butter, and water (bubble for water)
+
+            // Non-food items that could be used in cooking or gardening
+            '🪵', '🔥', '💧', '🪨', '🧊'
+        ];
+
+        const cookingResults = {
+            // Fruit-based dishes
+            '🍎🧈🌰': '🥧', // Apple pie
+            '🍓🍌🥛': '🥤', // Strawberry banana smoothie
+            '🫐🥛🍯': '🥣', // Blueberry yogurt bowl
+            '🍋🍯🌿💧': '🍵', // Lemon herb tea
+            '🍑🥛🧊': '🍹', // Peach milkshake
+            '🍍🥥🧊': '🍹', // Piña colada
+
+            // Vegetable-based dishes
+            '🥔🧄🧈🧂': '🥔', // Garlic mashed potatoes
+            '🍅🫑🧄🌿': '🥫', // Tomato sauce
+            '🥕🍠🧄💧': '🥣', // Root vegetable soup
+            '🥑🍋🧄🧂': '🥗', // Guacamole
+            '🍆🍅🧄🧂': '🍆', // Ratatouille
+            '🥬🥕🥒🍋': '🥗', // Garden salad
+
+            // Grain-based dishes
+            '🌾💧': '🍚', // Cooked rice
+            '🌾🥚🥬': '🍲', // Vegetable fried rice
+            '🌾🍅🌶️🥘': '🍛', // Spicy tomato rice
+
+            // Meat-based dishes
+            '🥩🧄🌿': '🍖', // Herb-roasted meat
+            '🥩🍄🧅💧': '🍲', // Beef and mushroom stew
+            '🥩🥔🥕💧': '🥘', // Meat and potato casserole
+
+            // Seafood dishes
+            '🐟🍋🌿🔥': '🐟', // Grilled lemon herb fish
+            '🦐🧄🌶️🔥': '🍤', // Spicy garlic shrimp
+            '🐙🍋🫒🔥': '🥘', // Mediterranean octopus
+
+            // Egg dishes
+            '🥚🧄🧂': '🍳', // Scrambled eggs
+            '🥚🥬🧅🧀': '🍳', // Veggie omelette
+            '🥚🍅🫑': '🍳', // Shakshuka
+
+            // Baked goods
+            '🌾🥚🧈🍯': '🍞', // Sweet bread
+            '🌾🧈🧂': '🥖', // Baguette
+            '🍌🥚🧈🌰': '🍞', // Banana nut bread
+
+            // Desserts
+            '🍓🥛🧊': '🍨', // Strawberry ice cream
+            '🍎🧈🌰🍯': '🥧', // Apple crumble
+            '🍫🥛🧈': '🍫', // Chocolate truffle
+
+            // Beverages
+            '☕🥛': '☕', // Latte
+            '🫐🍓🍌💧': '🥤', // Mixed berry smoothie
+            '🥥🍍🧊': '🍹', // Piña colada
+
+            // Sauces and condiments
+            '🍅🧄': '🥫', // Hot sauce
+            '🥚🍋🧄🧂': '🫙', // Mayonnaise (using 🫙 for sauce)
+            '🫐🍯🍋': '🫙', // Blueberry jam
+
+            // Pickles and preserves
+            '🥒💧🧂': '🥒', // Pickles
+            '🍅🧄🌶️💧': '🥫', // Pickled vegetables
+
+            // Complex dishes
+            '🍅🥩🍄🍝': '🍝', // Spaghetti Bolognese
+            '🥩🧅🥔🥕': '🥘', // Beef stew
+            '🐟🍋🥬🍚': '🍱', // Fish with lemon, greens, and rice
+            '🥚🥓🧀🍞': '🥪', // Breakfast sandwich
+        };
+
+        function getRandomPlantEmoji() {
+            return plantEmojis[Math.floor(Math.random() * plantEmojis.length)];
+        }
+
+        function selectTool(tool) {
+            selectedTool = tool;
+            [plantButton, waterButton, killButton, moveButton, cookButton].forEach(btn => btn.classList.remove('selected'));
+            document.getElementById(`${tool}Button`).classList.add('selected');
+            gardenContainer.className = `cursor-${tool}`;
+        }
+
+        plantButton.addEventListener('click', () => selectTool('plant'));
+        waterButton.addEventListener('click', () => selectTool('water'));
+        moveButton.addEventListener('click', () => selectTool('move'));
+        killButton.addEventListener('click', () => selectTool('kill'));
+        cookButton.addEventListener('click', () => selectTool('cook'));
+
+        function handleStart(e) {
+            if (e.target.closest('#toolbar')) return;
+            const clientX = e.clientX || e.touches[0].clientX;
+            const clientY = e.clientY || e.touches[0].clientY;
+            const {x, y} = clientToGardenCoordinates(clientX, clientY);
+
+            if (selectedTool === 'plant') {
+                const plant = document.createElement('div');
+                plant.className = 'plant';
+                plant.textContent = getRandomPlantEmoji();
+                plant.style.left = `${x}px`;
+                plant.style.top = `${y}px`;
+                garden.appendChild(plant);
+            } else if (e.target.classList.contains('plant')) {
+                if (selectedTool === 'water') {
+                    const currentSize = parseFloat(getComputedStyle(e.target).fontSize);
+                    e.target.style.fontSize = `${currentSize * 1.2}px`;
+                } else if (selectedTool === 'kill') {
+                    e.target.style.opacity = '0';
+                    setTimeout(() => e.target.remove(), 300);
+                } else if (selectedTool === 'move') {
+                    isDragging = true;
+                    currentPlant = e.target;
+                    const plantRect = currentPlant.getBoundingClientRect();
+                    offsetX = clientX - plantRect.left;
+                    offsetY = clientY - plantRect.top;
+                    currentPlant.style.zIndex = 1000;
+                } else if (selectedTool === 'cook') {
+                    cookEmojis(e.target);
+                }
+            } else {
+                isPanning = true;
+                lastX = clientX;
+                lastY = clientY;
+            }
+        }
+
+        function handleMove(e) {
+            const clientX = e.clientX || (e.touches && e.touches[0].clientX);
+            const clientY = e.clientY || (e.touches && e.touches[0].clientY);
+            const {x, y} = clientToGardenCoordinates(clientX, clientY);
+
+            if (isDragging && currentPlant) {
+                currentPlant.style.left = `${x - offsetX / scale}px`;
+                currentPlant.style.top = `${y - offsetY / scale}px`;
+                e.preventDefault();
+            } else if (isPanning) {
+                const dx = clientX - lastX;
+                const dy = clientY - lastY;
+                translateX += dx;
+                translateY += dy;
+                lastX = clientX;
+                lastY = clientY;
+                requestAnimationFrame(updateTransform);
+            }
+        }
+
+        function handleEnd() {
+            isDragging = false;
+            isPanning = false;
+            if (currentPlant) {
+                currentPlant.style.zIndex = '';
+                currentPlant = null;
+            }
+        }
+
+        function handleWheel(e) {
+            e.preventDefault();
+
+            if (e.ctrlKey) {
+                // Pinch-to-zoom gesture on trackpad
+                const delta = -e.deltaY;
+                const zoomIntensity = 0.1;
+                const zoomFactor = Math.exp(delta * zoomIntensity);
+                zoom(e.clientX, e.clientY, zoomFactor);
+            } else {
+                // Two-finger scroll on trackpad
+                translateX -= e.deltaX;
+                translateY -= e.deltaY;
+                requestAnimationFrame(updateTransform);
+            }
+        }
+
+        function zoom(clientX, clientY, zoomFactor) {
+            const gardenRect = gardenContainer.getBoundingClientRect();
+            const mouseX = clientX - gardenRect.left;
+            const mouseY = clientY - gardenRect.top;
+
+            const newScale = scale * zoomFactor;
+            if (newScale < 0.1 || newScale > 10) return; // Limit zoom levels
+
+            translateX -= mouseX * (zoomFactor - 1);
+            translateY -= mouseY * (zoomFactor - 1);
+
+            scale = newScale;
+            requestAnimationFrame(updateTransform);
+        }
+
+        function updateTransform() {
+            garden.style.transform = `translate(${translateX}px, ${translateY}px) scale(${scale})`;
+        }
+
+        function clientToGardenCoordinates(clientX, clientY) {
+            const gardenRect = gardenContainer.getBoundingClientRect();
+            const x = (clientX - gardenRect.left - translateX) / scale;
+            const y = (clientY - gardenRect.top - translateY) / scale;
+            return {x, y};
+        }
+
+        function findClosestPlant() {
+            const plants = document.querySelectorAll('.plant');
+            if (plants.length === 0) return null;
+
+            const gardenRect = gardenContainer.getBoundingClientRect();
+            const centerX = gardenRect.width / 2;
+            const centerY = gardenRect.height / 2;
+
+            let closestPlant = null;
+            let closestDistance = Infinity;
+
+            plants.forEach(plant => {
+                const plantRect = plant.getBoundingClientRect();
+                const plantCenterX = plantRect.left + plantRect.width / 2 - gardenRect.left;
+                const plantCenterY = plantRect.top + plantRect.height / 2 - gardenRect.top;
+                const distance = Math.hypot(plantCenterX - centerX, plantCenterY - centerY);
+
+                if (distance < closestDistance) {
+                    closestDistance = distance;
+                    closestPlant = plant;
+                }
+            });
+
+            return closestPlant;
+        }
+
+        function zoomToElement(element) {
+            if (!element) return;
+
+            const gardenRect = gardenContainer.getBoundingClientRect();
+            const elementRect = element.getBoundingClientRect();
+
+            const elementCenterX = elementRect.left + elementRect.width / 2 - gardenRect.left;
+            const elementCenterY = elementRect.top + elementRect.height / 2 - gardenRect.top;
+
+            scale = 1; // Reset zoom to 100%
+            translateX = gardenRect.width / 2 - elementCenterX;
+            translateY = gardenRect.height / 2 - elementCenterY;
+
+            requestAnimationFrame(updateTransform);
+        }
+
+        function cookEmojis(targetPlant) {
+            const plants = document.querySelectorAll('.plant');
+            const targetRect = targetPlant.getBoundingClientRect();
+            let combinedEmojis = targetPlant.textContent;
+            let cookedPlants = [targetPlant];
+
+            plants.forEach(plant => {
+                if (plant !== targetPlant) {
+                    const plantRect = plant.getBoundingClientRect();
+                    if (isOverlapping(targetRect, plantRect)) {
+                        combinedEmojis += plant.textContent;
+                        cookedPlants.push(plant);
+                    }
+                }
+            });
+
+            const cookedEmoji = getCookedEmoji(combinedEmojis);
+            if (cookedEmoji) {
+                targetPlant.textContent = cookedEmoji;
+                cookedPlants.forEach((plant, index) => {
+                    if (index !== 0) {
+                        plant.remove();
+                    }
+                });
+            }
+        }
+
+        function isOverlapping(rect1, rect2) {
+            return !(rect1.right < rect2.left ||
+                rect1.left > rect2.right ||
+                rect1.bottom < rect2.top ||
+                rect1.top > rect2.bottom);
+        }
+
+        function getCookedEmoji(ingredients) {
+            // Sort the ingredients to ensure consistent matching
+            const sortedIngredients = ingredients.split('').sort().join('');
+
+            for (const [key, value] of Object.entries(cookingResults)) {
+                if (sortedIngredients === key.split('').sort().join('')) {
+                    return value;
+                }
+            }
+
+            // If no exact match, try to find a partial match
+            for (const [key, value] of Object.entries(cookingResults)) {
+                if (key.split('').every(char => sortedIngredients.includes(char))) {
+                    return value;
+                }
+            }
+
+            // If no match found, return a default cooked emoji
+            return '🍲';
+        }
+
+        // Event listeners
+        gardenContainer.addEventListener('mousedown', handleStart);
+        document.addEventListener('mousemove', handleMove);
+        document.addEventListener('mouseup', handleEnd);
+        gardenContainer.addEventListener('wheel', handleWheel, {passive: false});
+
+        gardenContainer.addEventListener('touchstart', handleStart);
+        document.addEventListener('touchmove', handleMove, {passive: false});
+        document.addEventListener('touchend', handleEnd);
+
+        document.addEventListener('keydown', (e) => {
+            if (e.metaKey || e.ctrlKey) {  // Command key on Mac or Control key on Windows
+                if (e.key === '+' || e.key === '=') {
+                    e.preventDefault();
+                    zoom(window.innerWidth / 2, window.innerHeight / 2, 1.1);
+                } else if (e.key === '-') {
+                    e.preventDefault();
+                    zoom(window.innerWidth / 2, window.innerHeight / 2, 0.9);
+                }
+            } else if (e.shiftKey && e.key === '@') {
+                e.preventDefault();
+                const closestPlant = findClosestPlant();
+                zoomToElement(closestPlant);
+            }
+        });
+
+        selectTool('plant');
+        updateTransform();
+    </script>
+</body>
+
+</html>

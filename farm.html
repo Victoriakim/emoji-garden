@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Animal Farm</title>
+    <style>
+        @font-face {
+            font-family: 'Comic Neue';
+            src: url('https://fonts.gstatic.com/s/comicneue/v6/4UaHrEJDsxBrF37olUeD96rp57F2IwN-Dwn-5ag.woff2') format('woff2');
+            font-weight: 400;
+            font-style: normal;
+            font-display: swap;
+        }
+
+        body, html {
+            font-family: 'Comic Neue', 'Comic Sans MS', 'Chalkboard SE', 'Marker Felt', sans-serif;
+            margin: 0;
+            padding: 0;
+            height: 100%;
+            width: 100%;
+            background-color: #F5E6D3;
+            overflow: hidden;
+            touch-action: none;
+        }
+        #toolbar {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            padding: 10px;
+            background-color: rgba(210, 180, 140, 0.5);
+        }
+        .tool {
+            font-size: 1em;
+            padding: 8px 12px;
+            cursor: pointer;
+            background-color: #FFF8E7;
+            border: 2px solid #8B4513;
+            border-radius: 20px;
+            color: #8B4513;
+            transition: all 0.2s ease;
+            font-family: inherit;
+            font-weight: normal;
+            flex: 1;
+            min-width: 70px;
+            max-width: 100px;
+            text-align: center;
+            white-space: nowrap;
+        }
+        .tool:hover {
+            background-color: #FFFFFF;
+        }
+        .animal {
+            font-size: 2.5em;
+            position: absolute;
+            user-select: none;
+            touch-action: none;
+        }
+        .selected {
+            background-color: #D2B48C;
+            color: #FFFFFF;
+        }
+        .cursor-place { cursor: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='32' height='32' style='font-size: 24px; opacity: 0.6;'><text y='20'>🐷</text></svg>"), auto; }
+        .cursor-feed { cursor: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='32' height='32' style='font-size: 24px; opacity: 0.6;'><text y='20'>🌾</text></svg>"), auto; }
+        .cursor-remove { cursor: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='32' height='32' style='font-size: 24px; opacity: 0.6;'><text y='20'>🚛</text></svg>"), auto; }
+        .cursor-move { cursor: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='32' height='32' style='font-size: 24px; opacity: 0.6;'><text y='20'>➡️</text></svg>"), auto; }
+
+        @media (max-width: 600px) {
+            .tool {
+                font-size: 0.8em;
+                padding: 6px 8px;
+                min-width: 50px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div id="toolbar">
+        <button id="placeButton" class="tool">Place 🐷</button>
+        <button id="feedButton" class="tool">Feed 🌾</button>
+        <button id="moveButton" class="tool">Move ➡️</button>
+        <button id="removeButton" class="tool">Remove 🚛</button>
+    </div>
+
+    <script>
+        const placeButton = document.getElementById('placeButton');
+        const feedButton = document.getElementById('feedButton');
+        const removeButton = document.getElementById('removeButton');
+        const moveButton = document.getElementById('moveButton');
+        let selectedTool = 'place';
+        let isDragging = false;
+        let currentAnimal = null;
+        let offsetX, offsetY;
+
+        const animalEmojis = [
+            '🐶', '🐱', '🐭', '🐹', '🐰', '🦊', '🐻', '🐼', '🐨', '🐯', '🦁', '🐮',
+            '🐷', '🐸', '🐵', '🐔', '🐧', '🐦', '🐤', '🦆', '🦅', '🦉', '🦇', '🐺',
+            '🐗', '🐴', '🦄', '🐝', '🐛', '🦋', '🐌', '🐞', '🐜', '🦟', '🦗', '🕷️'
+        ];
+
+        function getRandomAnimalEmoji() {
+            return animalEmojis[Math.floor(Math.random() * animalEmojis.length)];
+        }
+
+        function selectTool(tool) {
+            selectedTool = tool;
+            [placeButton, feedButton, removeButton, moveButton].forEach(btn => btn.classList.remove('selected'));
+            document.getElementById(`${tool}Button`).classList.add('selected');
+            document.body.className = `cursor-${tool}`;
+        }
+
+        placeButton.addEventListener('click', () => selectTool('place'));
+        feedButton.addEventListener('click', () => selectTool('feed'));
+        removeButton.addEventListener('click', () => selectTool('remove'));
+        moveButton.addEventListener('click', () => selectTool('move'));
+
+        function handleStart(e) {
+            if (e.target.tagName === 'BUTTON') return;
+            const clientX = e.clientX || e.touches[0].clientX;
+            const clientY = e.clientY || e.touches[0].clientY;
+            if (selectedTool === 'place') {
+                const animal = document.createElement('div');
+                animal.className = 'animal';
+                animal.textContent = getRandomAnimalEmoji();
+                animal.style.left = `${clientX}px`;
+                animal.style.top = `${clientY}px`;
+                document.body.appendChild(animal);
+            } else if (e.target.classList.contains('animal')) {
+                if (selectedTool === 'feed') {
+                    const currentSize = parseFloat(getComputedStyle(e.target).fontSize);
+                    e.target.style.fontSize = `${currentSize * 1.2}px`;
+                } else if (selectedTool === 'remove') {
+                    e.target.style.opacity = '0';
+                    setTimeout(() => e.target.remove(), 300);
+                } else if (selectedTool === 'move') {
+                    isDragging = true;
+                    currentAnimal = e.target;
+                    offsetX = clientX - currentAnimal.getBoundingClientRect().left;
+                    offsetY = clientY - currentAnimal.getBoundingClientRect().top;
+                    currentAnimal.style.zIndex = 1000;
+                }
+            }
+        }
+
+        function handleMove(e) {
+            if (isDragging && currentAnimal) {
+                const clientX = e.clientX || e.touches[0].clientX;
+                const clientY = e.clientY || e.touches[0].clientY;
+                currentAnimal.style.left = `${clientX - offsetX}px`;
+                currentAnimal.style.top = `${clientY - offsetY}px`;
+                e.preventDefault();
+            }
+        }
+
+        function handleEnd() {
+            isDragging = false;
+            if (currentAnimal) {
+                currentAnimal.style.zIndex = '';
+                currentAnimal = null;
+            }
+        }
+
+        // Mouse events
+        document.body.addEventListener('mousedown', handleStart);
+        document.addEventListener('mousemove', handleMove);
+        document.addEventListener('mouseup', handleEnd);
+
+        // Touch events
+        document.body.addEventListener('touchstart', handleStart);
+        document.addEventListener('touchmove', handleMove, { passive: false });
+        document.addEventListener('touchend', handleEnd);
+
+        selectTool('place');
+    </script>
+</body>
+</html>
