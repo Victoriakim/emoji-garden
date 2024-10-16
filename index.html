@@ -87,3 +87,179 @@
 </body>
 
 </html>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Emoji Garden</title>
+    <style>
+        @font-face {
+            font-family: 'Comic Neue';
+            src: url('https://fonts.gstatic.com/s/comicneue/v6/4UaHrEJDsxBrF37olUeD96rp57F2IwN-Dwn-5ag.woff2') format('woff2');
+            font-weight: 400;
+            font-style: normal;
+            font-display: swap;
+        }
+
+        body, html {
+            font-family: 'Comic Neue', 'Comic Sans MS', 'Chalkboard SE', 'Marker Felt', sans-serif;
+            margin: 0;
+            padding: 0;
+            height: 100%;
+            width: 100%;
+            background-color: #E8EFE6;
+            overflow: hidden;
+            touch-action: none;
+        }
+        #toolbar {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            padding: 10px;
+            background-color: rgba(166, 181, 150, 0.5);
+        }
+        .tool {
+            font-size: 1em;
+            padding: 8px 12px;
+            cursor: pointer;
+            background-color: #F3F7EF;
+            border: 2px solid #4A5D46;
+            border-radius: 20px;
+            color: #4A5D46;
+            transition: all 0.2s ease;
+            font-family: inherit;
+            font-weight: normal;
+            flex: 1;
+            min-width: 70px;
+            max-width: 100px;
+            text-align: center;
+            white-space: nowrap;
+        }
+        .tool:hover {
+            background-color: #FFFFFF;
+        }
+        .plant {
+            font-size: 2.5em;
+            position: absolute;
+            user-select: none;
+            touch-action: none;
+        }
+        .selected {
+            background-color: #8FAB7B;
+            color: #FFFFFF;
+        }
+        .cursor-plant { cursor: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='32' height='32' style='font-size: 24px; opacity: 0.6;'><text y='20'>🌱</text></svg>"), auto; }
+        .cursor-water { cursor: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='32' height='32' style='font-size: 24px; opacity: 0.6;'><text y='20'>💧</text></svg>"), auto; }
+        .cursor-kill { cursor: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='32' height='32' style='font-size: 24px; opacity: 0.6;'><text y='20'>✂️</text></svg>"), auto; }
+        .cursor-move { cursor: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='32' height='32' style='font-size: 24px; opacity: 0.6;'><text y='20'>➡️</text></svg>"), auto; }
+
+        @media (max-width: 600px) {
+            .tool {
+                font-size: 0.8em;
+                padding: 6px 8px;
+                min-width: 50px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div id="toolbar">
+        <button id="plantButton" class="tool">Plant 🌱</button>
+        <button id="waterButton" class="tool">Water 💧</button>
+        <button id="moveButton" class="tool">Move ➡️</button>
+        <button id="killButton" class="tool">Kill ✂️</button>
+    </div>
+
+    <script>
+        const plantButton = document.getElementById('plantButton');
+        const waterButton = document.getElementById('waterButton');
+        const killButton = document.getElementById('killButton');
+        const moveButton = document.getElementById('moveButton');
+        let selectedTool = 'plant';
+        let isDragging = false;
+        let currentPlant = null;
+        let offsetX, offsetY;
+
+        const plantEmojis = [
+            '🌱', '🌲', '🌳', '🌴', '🌵', '🌾', '🌿', '☘️', '🍀', '🍁', '🍂', '🍃',
+            '🍄', '🌸', '🌹', '🌺', '🌻', '🌼', '🌷', '🌰', '🥀', '🍇', '🍈', '🍉',
+            '🍊', '🍋', '🍌', '🍍', '🥭', '🍎', '🍏', '🍐', '🍑', '🍒', '🍓', '🥝'
+        ];
+
+        function getRandomPlantEmoji() {
+            return plantEmojis[Math.floor(Math.random() * plantEmojis.length)];
+        }
+
+        function selectTool(tool) {
+            selectedTool = tool;
+            [plantButton, waterButton, killButton, moveButton].forEach(btn => btn.classList.remove('selected'));
+            document.getElementById(`${tool}Button`).classList.add('selected');
+            document.body.className = `cursor-${tool}`;
+        }
+
+        plantButton.addEventListener('click', () => selectTool('plant'));
+        waterButton.addEventListener('click', () => selectTool('water'));
+        killButton.addEventListener('click', () => selectTool('kill'));
+        moveButton.addEventListener('click', () => selectTool('move'));
+
+        function handleStart(e) {
+            if (e.target.tagName === 'BUTTON') return;
+            const clientX = e.clientX || e.touches[0].clientX;
+            const clientY = e.clientY || e.touches[0].clientY;
+            if (selectedTool === 'plant') {
+                const plant = document.createElement('div');
+                plant.className = 'plant';
+                plant.textContent = getRandomPlantEmoji();
+                plant.style.left = `${clientX}px`;
+                plant.style.top = `${clientY}px`;
+                document.body.appendChild(plant);
+            } else if (e.target.classList.contains('plant')) {
+                if (selectedTool === 'water') {
+                    const currentSize = parseFloat(getComputedStyle(e.target).fontSize);
+                    e.target.style.fontSize = `${currentSize * 1.2}px`;
+                } else if (selectedTool === 'kill') {
+                    e.target.style.opacity = '0';
+                    setTimeout(() => e.target.remove(), 300);
+                } else if (selectedTool === 'move') {
+                    isDragging = true;
+                    currentPlant = e.target;
+                    offsetX = clientX - currentPlant.getBoundingClientRect().left;
+                    offsetY = clientY - currentPlant.getBoundingClientRect().top;
+                    currentPlant.style.zIndex = 1000;
+                }
+            }
+        }
+
+        function handleMove(e) {
+            if (isDragging && currentPlant) {
+                const clientX = e.clientX || e.touches[0].clientX;
+                const clientY = e.clientY || e.touches[0].clientY;
+                currentPlant.style.left = `${clientX - offsetX}px`;
+                currentPlant.style.top = `${clientY - offsetY}px`;
+                e.preventDefault();
+            }
+        }
+
+        function handleEnd() {
+            isDragging = false;
+            if (currentPlant) {
+                currentPlant.style.zIndex = '';
+                currentPlant = null;
+            }
+        }
+
+        // Mouse events
+        document.body.addEventListener('mousedown', handleStart);
+        document.addEventListener('mousemove', handleMove);
+        document.addEventListener('mouseup', handleEnd);
+
+        // Touch events
+        document.body.addEventListener('touchstart', handleStart);
+        document.addEventListener('touchmove', handleMove, { passive: false });
+        document.addEventListener('touchend', handleEnd);
+
+        selectTool('plant');
+    </script>
+</body>
+</html>
